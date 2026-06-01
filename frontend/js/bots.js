@@ -30,7 +30,7 @@ async function loadBots() {
           ID: ${b.telegram_bot_id || '—'} &middot; Подключён: ${formatDate(b.created_at)}
         </div>
         <div class="bot-actions">
-          <button class="btn btn-primary btn-sm" onclick="syncBot(${b.id})">
+          <button class="btn btn-primary btn-sm" onclick="syncBot(${b.id}, event)">
             <i class="fas fa-sync"></i> Sync Messages
           </button>
           <button class="btn btn-danger btn-sm" onclick="showDeleteBotModal(${b.id})">
@@ -44,21 +44,18 @@ async function loadBots() {
   }
 }
 
-async function syncBot(id) {
-  const btns = document.querySelectorAll('.btn');
-  btns.forEach(b => b.disabled = true);
-  const targetBtn = event.target.closest('.btn');
-  const originalHtml = targetBtn.innerHTML;
-  targetBtn.innerHTML = '<span class="spinner"></span> Синхронизация...';
+async function syncBot(id, event) {
+  const targetBtn = event?.target?.closest?.('.btn');
+  const originalHtml = targetBtn?.innerHTML || '';
+  if (targetBtn) targetBtn.innerHTML = '<span class="spinner"></span> Синхронизация...';
   try {
     const res = await apiPost(`/api/bots/${id}/sync`);
     showNotification(`Синхронизировано ${res.messages_synced} сообщений`, 'success');
     loadBots();
   } catch (e) {
     showNotification('Ошибка синхронизации', 'error');
-    targetBtn.innerHTML = originalHtml;
+    if (targetBtn) targetBtn.innerHTML = originalHtml;
   }
-  btns.forEach(b => b.disabled = false);
 }
 
 function showDeleteBotModal(id) {

@@ -49,10 +49,10 @@ def _openai_analyze(text: str) -> dict:
                     "You are a message analyzer. Analyze the user's message and return a JSON object. "
                     "The JSON must have EXACTLY these fields (no extra fields, no markdown):\n"
                     '  "sentiment": "positive" | "negative" | "neutral",\n'
-                    '  "emotion": "joy" | "anger" | "sadness" | "fear" | "neutral",\n'
+                    '  "emotion": "happy" | "angry" | "frustrated" | "confused" | "neutral",\n'
                     '  "complaint": true | false,\n'
                     '  "priority": "high" | "medium" | "low",\n'
-                    '  "category": "general" | "technical" | "complaint" | "support" | "other",\n'
+                    '  "category": "general" | "technical" | "billing" | "product" | "account" | "service" | "support",\n'
                     '  "summary": "1-2 short sentences describing the message essence in Russian"\n'
                     "The analysis must depend on the actual message content. "
                     "Do NOT return default/hardcoded values. Return ONLY the JSON object."
@@ -78,6 +78,24 @@ def _openai_analyze(text: str) -> dict:
 
     if "is_complaint" in result and "complaint" not in result:
         result["complaint"] = result.pop("is_complaint")
+
+    result = {
+        "sentiment": result.get("sentiment", "neutral"),
+        "emotion": result.get("emotion", "neutral"),
+        "complaint": result.get("complaint", False),
+        "priority": result.get("priority", "medium"),
+        "category": result.get("category", "general"),
+        "summary": result.get("summary", ""),
+    }
+
+    emotion_map = {
+        "joy": "happy", "anger": "angry", "sadness": "frustrated",
+        "fear": "confused", "surprise": "confused",
+    }
+    result["emotion"] = emotion_map.get(result.get("emotion", ""), result.get("emotion", "neutral"))
+    result["sentiment"] = result.get("sentiment", "neutral") if result.get("sentiment") in ("positive", "negative", "neutral") else "neutral"
+    result["category"] = result.get("category", "general") if result.get("category") in ("general", "technical", "billing", "product", "account", "service", "support") else "general"
+    result["priority"] = result.get("priority", "medium") if result.get("priority") in ("high", "medium", "low") else "medium"
 
     logger.info("Анализ завершён: sentiment=%s, emotion=%s, complaint=%s",
                 result.get("sentiment"), result.get("emotion"), result.get("complaint"))

@@ -93,24 +93,23 @@
   <script src="js/app.js"></script>
   <script>checkAuth();</script>
   <script>
-    async function seedData() {
-      const btn = event.target;
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Заполнение...';
+    async function seedData(event) {
+      const btn = event?.target;
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Заполнение...'; }
       try {
         const res = await apiPost('/api/seed');
         showNotification(`Данные добавлены: ${res.seeded} сообщений`, 'success');
       } catch (e) {
         showNotification('Ошибка заполнения данных', 'error');
       }
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-seedling"></i> Заполнить демо-данными';
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-seedling"></i> Заполнить демо-данными'; }
     }
 
     async function clearData() {
       if (!confirm('Вы уверены? Все данные будут удалены.')) return;
       try {
-        await apiPost('/api/seed');
+        await apiDelete('/api/messages/clear');
+        await apiDelete('/api/bots/clear');
         showNotification('Все данные удалены', 'info');
         location.reload();
       } catch (e) {
@@ -121,10 +120,13 @@
     async function checkApiStatus() {
       const el = document.getElementById('apiStatus');
       try {
-        const res = await apiPost('/api/analyze', { text: 'test' });
-        if (res && res.sentiment) {
+        const res = await apiGet('/api/debug/openai');
+        if (res && res.has_key) {
           el.className = 'tag tag-positive';
           el.textContent = 'Подключено';
+        } else {
+          el.className = 'tag tag-negative';
+          el.textContent = 'Ключ не задан';
         }
       } catch {
         el.className = 'tag tag-negative';

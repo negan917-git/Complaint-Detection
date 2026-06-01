@@ -227,9 +227,9 @@ def get_analytics(db: Session):
         .order_by(func.count(Message.id).desc())
         .all()
     )
-    max_cat = max((r[1] for r in categories_rows), default=1)
+    total_cat = sum(r[1] for r in categories_rows) or 1
     categories = [
-        {"name": r[0], "count": r[1], "percent": round((r[1] / max_cat * 100), 0)}
+        {"name": r[0], "count": r[1], "percent": round((r[1] / total_cat * 100), 0)}
         for r in categories_rows
     ]
 

@@ -26,7 +26,6 @@ from backend.services.openai_service import analyze_message, HAS_OPENAI, OPENAI_
 from backend.services.auth import (
     hash_password, verify_password, create_access_token, get_current_user,
 )
-import os
 import random
 import re
 
@@ -189,6 +188,22 @@ def debug_openai():
             info["openai_error"] = str(e)
             log.error("OpenAI diagnostic FAILED: %s", e, exc_info=True)
     return info
+
+
+@app.delete("/api/messages/clear")
+def api_clear_messages(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db.query(Message).delete()
+    db.query(Bot).update({"messages_count": 0})
+    db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/bots/clear")
+def api_clear_bots(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db.query(Message).delete()
+    db.query(Bot).delete()
+    db.commit()
+    return {"ok": True}
 
 
 @app.post("/api/seed")
