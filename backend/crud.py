@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, cast, Date
 from backend.models import Bot, Message
@@ -7,6 +8,8 @@ import random
 from backend.services.telegram_service import validate_bot_token, get_bot_updates
 from backend.services.encryption import encrypt_token, decrypt_token
 from backend.services.openai_service import analyze_message
+
+logger = logging.getLogger("opencode.crud")
 
 
 def get_dashboard(db: Session):
@@ -106,7 +109,9 @@ def sync_bot_messages(db: Session, bot_id: int):
             from_user = msg_data.get("from", {})
             name = from_user.get("first_name", "User") or "User"
             username = from_user.get("username", "")
+            logger.info("Анализ сообщения от @%s: %.80s", username, text)
             result = analyze_message(text)
+            logger.debug("Результат анализа: %s", result)
             msg = Message(
                 name=name,
                 username=username,

@@ -1,45 +1,77 @@
 import os
 import json
 import re
-from dotenv import load_dotenv
+import logging
+from dotenv import load_dotenv, find_dotenv
 
-load_dotenv()
+logger = logging.getLogger("opencode.openai_service")
+
+_dotenv_path = find_dotenv(usecwd=True)
+if _dotenv_path:
+    load_dotenv(_dotenv_path)
+else:
+    load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+_HAS_OPENAI = bool(OPENAI_API_KEY)
+
+if not _HAS_OPENAI:
+    logger.warning("OPENAI_API_KEY не задан — используется локальный анализатор")
 
 
 def analyze_message(text: str) -> dict:
-    if OPENAI_API_KEY:
+    if _HAS_OPENAI:
         try:
-            from openai import OpenAI
-            client = OpenAI(api_key=OPENAI_API_KEY)
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a message analyzer. Analyze the following message and return a JSON object "
-                            "with these fields: sentiment (positive/negative/neutral), "
-                            "emotion (happy/neutral/confused/frustrated/angry), "
-                            "complaint (true/false), priority (low/medium/high), "
-                            "category (general/support/service/technical/billing/product/account), "
-                            "summary (short summary in Russian). "
-                            "Return ONLY valid JSON."
-                        ),
-                    },
-                    {"role": "user", "content": text},
-                ],
-                temperature=0.3,
-                max_tokens=300,
-            )
-            raw = response.choices[0].message.content.strip()
-            raw = re.sub(r"^```json\s*", "", raw)
-            raw = re.sub(r"\s*```$", "", raw)
-            return json.loads(raw)
-        except Exception:
-            pass
+            return _openai_analyze(text)
+        except Exception as e:
+            logger.error("OpenAI анализ упал: %s", e, exc_info=True)
     return _local_analyzer(text)
+
+
+def _openai_analyze(text: str) -> dict:
+    if not text or not text.strip():
+        raise ValueError("Текст сообщения пустой")
+
+    from openai import OpenAI
+    client = OpenAI(api_key=OPENAI_API_KEY)
+
+    logger.info("Отправка запроса в OpenAI (gpt-4o-mini), длина текста: %d символов", len(text))
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a message analyzer. Analyze the following message and return a JSON object "
+                    "with these fields: sentiment (positive/negative/neutral), "
+                    "emotion (happy/neutral/confused/frustrated/angry), "
+                    "complaint (true/false), priority (low/medium/high), "
+                    "category (general/support/service/technical/billing/product/account), "
+                    "summary (short summary in Russian). "
+                    "Return ONLY valid JSON without markdown formatting."
+                ),
+            },
+            {"role": "user", "content": text},
+        ],
+        temperature=0.3,
+        max_tokens=300,
+    )
+
+    raw = response.choices[0].message.content.strip()
+    logger.debug("Ответ OpenAI (raw): %.200s", raw)
+
+    raw = re.sub(r"(?is)^.*?```(?:json)?\s*", "", raw)
+    raw = re.sub(r"(?is)\s*```.*$", "", raw)
+    raw = raw.strip()
+
+    if not raw:
+        raise ValueError("OpenAI вернул пустой ответ")
+
+    result = json.loads(raw)
+    logger.info("Анализ завершён: sentiment=%s, emotion=%s, complaint=%s",
+                result.get("sentiment"), result.get("emotion"), result.get("complaint"))
+    return result
 
 
 def _local_analyzer(text: str) -> dict:

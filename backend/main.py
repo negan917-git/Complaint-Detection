@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 if not __package__:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
     __package__ = "backend"
@@ -30,6 +31,11 @@ import random
 import re
 
 Base.metadata.create_all(bind=engine)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
 
 app = FastAPI(title="Complaint Detection")
 
@@ -146,7 +152,10 @@ def api_analytics(db: Session = Depends(get_db), current_user: User = Depends(ge
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 def api_analyze(data: AnalyzeRequest, current_user: User = Depends(get_current_user)):
+    logger = logging.getLogger("opencode.api")
+    logger.info("Анализ сообщения от user %d: %.80s", current_user.id, data.text)
     result = analyze_message(data.text)
+    logger.info("Результат: sentiment=%s, emotion=%s", result.get("sentiment"), result.get("emotion"))
     return result
 
 
