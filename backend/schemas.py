@@ -98,6 +98,7 @@ class AnalyzeResponse(BaseModel):
     priority: str
     category: str
     summary: str
+    analyzer: str = "local"
 
 
 class AnalyticsOut(BaseModel):

@@ -22,9 +22,12 @@ async function analyzeAndSave() {
       complaint: analysis.complaint,
     });
 
+    const analyzerLabel = analysis.analyzer === 'openai'
+      ? '<span class="tag tag-positive" style="font-size:11px;">OpenAI</span>'
+      : '<span class="tag tag-neutral" style="font-size:11px;">Локальный</span>';
     container.innerHTML = `
       <div class="analysis-result">
-        <h3><i class="fas fa-check-circle" style="color:var(--success);"></i> Результат анализа</h3>
+        <h3><i class="fas fa-check-circle" style="color:var(--success);"></i> Результат анализа ${analyzerLabel}</h3>
         <div class="result-grid">
           <div class="result-item">
             <div class="label">Тональность</div>
@@ -56,8 +59,9 @@ async function analyzeAndSave() {
     showNotification('Сохранено в базу данных', 'success');
     document.getElementById('simText').value = '';
   } catch (e) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Ошибка анализа</p></div>';
-    showNotification('Ошибка анализа', 'error');
+    const errorMsg = e.detail || e.message || e;
+    container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Ошибка анализа</p><p style="font-size:12px;color:var(--danger);">${errorMsg}</p></div>`;
+    showNotification('Ошибка анализа: ' + errorMsg, 'error');
   }
 }
 

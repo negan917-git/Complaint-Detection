@@ -1,4 +1,4 @@
-const API_BASE = '';
+const API_BASE = 'https://complaint-detection.onrender.com';
 
 function getToken() {
   return localStorage.getItem('token');

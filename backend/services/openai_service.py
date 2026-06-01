@@ -2,24 +2,64 @@ import os
 import json
 import re
 import logging
+import sys
 from dotenv import load_dotenv, find_dotenv
 
 logger = logging.getLogger("opencode.openai_service")
 
 HAS_OPENAI = False
+_OPENAI_ERROR = None
 
+# Пробуем загрузить .env, но НЕ перезаписываем существующие переменные
 _dotenv_path = find_dotenv(usecwd=True)
 if _dotenv_path:
-    load_dotenv(_dotenv_path)
+    load_dotenv(_dotenv_path, override=False)
 else:
-    load_dotenv()
+    load_dotenv(override=False)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if OPENAI_API_KEY:
     HAS_OPENAI = True
-
-if not HAS_OPENAI:
+    logger.info("OPENAI_API_KEY найден, префикс: %s...", OPENAI_API_KEY[:12])
+else:
     logger.warning("OPENAI_API_KEY не задан — используется локальный анализатор")
+    logger.warning("Переменные окружения: OPENAI_API_KEY=%s", os.environ.get("OPENAI_API_KEY", "NOT SET"))
+
+
+def test_openai_connection() -> dict:
+    """Проверяет подключение к OpenAI и возвращает детальный результат."""
+    result = {
+        "has_key": bool(OPENAI_API_KEY),
+        "key_prefix": OPENAI_API_KEY[:12] + "..." if OPENAI_API_KEY else None,
+        "has_openai_flag": HAS_OPENAI,
+        "openai_test": None,
+        "openai_error": None,
+        "openai_response": None,
+    }
+    if not OPENAI_API_KEY:
+        result["openai_error"] = "OPENAI_API_KEY не задан"
+        return result
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY, max_retries=1)
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Return JSON {\"test\": \"ok\"}"},
+                {"role": "user", "content": "ping"},
+            ],
+            max_tokens=50,
+            temperature=0,
+        )
+        content = resp.choices[0].message.content
+        result["openai_test"] = "ok"
+        result["openai_response"] = content
+        logger.info("OpenAI diagnostic OK: %s", content)
+    except Exception as e:
+        result["openai_test"] = "fail"
+        result["openai_error"] = f"{type(e).__name__}: {str(e)}"
+        logger.error("OpenAI diagnostic FAILED: %s", e, exc_info=True)
+    return result
 
 
 def analyze_message(text: str) -> dict:
@@ -27,8 +67,10 @@ def analyze_message(text: str) -> dict:
         try:
             return _openai_analyze(text)
         except Exception as e:
-            logger.error("OpenAI анализ упал: %s", e, exc_info=True)
-    return _local_analyzer(text)
+            logger.error("OpenAI анализ упал: %s | тип: %s", e, type(e).__name__, exc_info=True)
+    result = _local_analyzer(text)
+    result["analyzer"] = "local"
+    return result
 
 
 def _openai_analyze(text: str) -> dict:
@@ -97,8 +139,10 @@ def _openai_analyze(text: str) -> dict:
     result["category"] = result.get("category", "general") if result.get("category") in ("general", "technical", "billing", "product", "account", "service", "support") else "general"
     result["priority"] = result.get("priority", "medium") if result.get("priority") in ("high", "medium", "low") else "medium"
 
-    logger.info("Анализ завершён: sentiment=%s, emotion=%s, complaint=%s",
-                result.get("sentiment"), result.get("emotion"), result.get("complaint"))
+    result["analyzer"] = "openai"
+
+    logger.info("Анализ завершён: sentiment=%s, emotion=%s, complaint=%s, analyzer=%s",
+                result.get("sentiment"), result.get("emotion"), result.get("complaint"), result["analyzer"])
     return result
 
 
@@ -178,4 +222,5 @@ def _local_analyzer(text: str) -> dict:
         "priority": priority,
         "category": category,
         "summary": summary,
+        "analyzer": "local",
     }

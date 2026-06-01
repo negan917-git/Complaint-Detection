@@ -77,13 +77,14 @@
         </div>
         <div class="card-body">
           <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">
-            Для использования AI-анализа сообщений укажите <code>OPENAI_API_KEY</code> в файле <code>.env</code>. 
+            Для использования AI-анализа сообщений укажите <code>OPENAI_API_KEY</code> в переменной окружения на Render.
             Ключ не передаётся через интерфейс — он считывается сервером из переменной окружения.
           </p>
           <div class="form-group">
             <label>Статус подключения</label>
             <span id="apiStatus" class="tag tag-neutral">Проверка...</span>
           </div>
+          <div id="openaiDetails" style="font-size:13px;color:var(--text-secondary);margin-top:8px;"></div>
           <button class="btn btn-outline" onclick="checkApiStatus()"><i class="fas fa-sync"></i> Проверить</button>
         </div>
       </div>
@@ -119,18 +120,31 @@
 
     async function checkApiStatus() {
       const el = document.getElementById('apiStatus');
+      const details = document.getElementById('openaiDetails');
       try {
         const res = await apiGet('/api/debug/openai');
         if (res && res.has_key) {
-          el.className = 'tag tag-positive';
-          el.textContent = 'Подключено';
+          if (res.openai_test === 'ok') {
+            el.className = 'tag tag-positive';
+            el.textContent = 'OpenAI работает';
+            details.innerHTML = `<code>${res.openai_response}</code>`;
+          } else if (res.openai_test === 'fail') {
+            el.className = 'tag tag-negative';
+            el.textContent = 'Ошибка OpenAI';
+            details.innerHTML = `<span style="color:var(--danger);">${res.openai_error}</span>`;
+          } else {
+            el.className = 'tag tag-warning';
+            el.textContent = 'Ключ есть, не проверен';
+          }
         } else {
           el.className = 'tag tag-negative';
           el.textContent = 'Ключ не задан';
+          details.innerHTML = 'Укажите OPENAI_API_KEY в Environment Variables на Render';
         }
-      } catch {
+      } catch (e) {
         el.className = 'tag tag-negative';
         el.textContent = 'Недоступно';
+        details.innerHTML = `Ошибка запроса: ${e.message || e}`;
       }
     }
     checkApiStatus();
