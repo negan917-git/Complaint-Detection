@@ -1,4 +1,4 @@
-const API_BASE = 'https://complaint-detection.onrender.com';
+const API_BASE = window.location.origin;
 
 function getToken() {
   return localStorage.getItem('token');
@@ -65,6 +65,10 @@ async function handleLogin(e) {
   try {
     const data = await apiPostAuth('/api/auth/login', { email, password });
     setToken(data.access_token);
+    const verifyRes = await fetch(`${API_BASE}/api/auth/me`, {
+      headers: { 'Authorization': `Bearer ${data.access_token}` },
+    });
+    if (!verifyRes.ok) throw new Error('Ошибка верификации токена');
     window.location.href = 'index.html';
   } catch (err) {
     showAuthError(err.message);
@@ -90,6 +94,10 @@ async function handleRegister(e) {
     await apiPostAuth('/api/auth/register', { username, email, password });
     const loginData = await apiPostAuth('/api/auth/login', { email, password });
     setToken(loginData.access_token);
+    const verifyRes = await fetch(`${API_BASE}/api/auth/me`, {
+      headers: { 'Authorization': `Bearer ${loginData.access_token}` },
+    });
+    if (!verifyRes.ok) throw new Error('Ошибка верификации токена');
     window.location.href = 'index.html';
   } catch (err) {
     showAuthError(err.message);
