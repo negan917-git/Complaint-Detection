@@ -22,7 +22,7 @@ from backend.crud import (
     get_bots, create_bot, delete_bot, sync_bot_messages, get_analytics,
     connect_telegram_bot,
 )
-from backend.services.openai_service import analyze_message
+from backend.services.openai_service import analyze_message, HAS_OPENAI, OPENAI_API_KEY
 from backend.services.auth import (
     hash_password, verify_password, create_access_token, get_current_user,
 )
@@ -152,11 +152,43 @@ def api_analytics(db: Session = Depends(get_db), current_user: User = Depends(ge
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 def api_analyze(data: AnalyzeRequest, current_user: User = Depends(get_current_user)):
-    logger = logging.getLogger("opencode.api")
-    logger.info("Анализ сообщения от user %d: %.80s", current_user.id, data.text)
+    log = logging.getLogger("opencode.api")
+    log.info("Анализ сообщения от user %d: %.80s", current_user.id, data.text)
     result = analyze_message(data.text)
-    logger.info("Результат: sentiment=%s, emotion=%s", result.get("sentiment"), result.get("emotion"))
+    log.info("Результат: sentiment=%s, emotion=%s", result.get("sentiment"), result.get("emotion"))
     return result
+
+
+@app.get("/api/debug/openai")
+def debug_openai():
+    log = logging.getLogger("opencode.api")
+    key_prefix = OPENAI_API_KEY[:10] + "..." if OPENAI_API_KEY else None
+    info = {
+        "has_key": bool(OPENAI_API_KEY),
+        "key_prefix": key_prefix,
+        "has_openai_flag": HAS_OPENAI,
+    }
+    if OPENAI_API_KEY:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=OPENAI_API_KEY)
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Return JSON {\"test\": \"ok\"}"},
+                    {"role": "user", "content": "ping"},
+                ],
+                max_tokens=50,
+            )
+            content = resp.choices[0].message.content
+            info["openai_test"] = "ok"
+            info["openai_response"] = content
+            log.info("OpenAI diagnostic OK: %s", content)
+        except Exception as e:
+            info["openai_test"] = "fail"
+            info["openai_error"] = str(e)
+            log.error("OpenAI diagnostic FAILED: %s", e, exc_info=True)
+    return info
 
 
 @app.post("/api/seed")

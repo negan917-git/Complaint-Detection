@@ -6,6 +6,8 @@ from dotenv import load_dotenv, find_dotenv
 
 logger = logging.getLogger("opencode.openai_service")
 
+HAS_OPENAI = False
+
 _dotenv_path = find_dotenv(usecwd=True)
 if _dotenv_path:
     load_dotenv(_dotenv_path)
@@ -13,14 +15,15 @@ else:
     load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-_HAS_OPENAI = bool(OPENAI_API_KEY)
+if OPENAI_API_KEY:
+    HAS_OPENAI = True
 
-if not _HAS_OPENAI:
+if not HAS_OPENAI:
     logger.warning("OPENAI_API_KEY не задан — используется локальный анализатор")
 
 
 def analyze_message(text: str) -> dict:
-    if _HAS_OPENAI:
+    if HAS_OPENAI:
         try:
             return _openai_analyze(text)
         except Exception as e:
@@ -43,13 +46,16 @@ def _openai_analyze(text: str) -> dict:
             {
                 "role": "system",
                 "content": (
-                    "You are a message analyzer. Analyze the following message and return a JSON object "
-                    "with these fields: sentiment (positive/negative/neutral), "
-                    "emotion (happy/neutral/confused/frustrated/angry), "
-                    "complaint (true/false), priority (low/medium/high), "
-                    "category (general/support/service/technical/billing/product/account), "
-                    "summary (short summary in Russian). "
-                    "Return ONLY valid JSON without markdown formatting."
+                    "You are a message analyzer. Analyze the user's message and return a JSON object. "
+                    "The JSON must have EXACTLY these fields (no extra fields, no markdown):\n"
+                    '  "sentiment": "positive" | "negative" | "neutral",\n'
+                    '  "emotion": "joy" | "anger" | "sadness" | "fear" | "neutral",\n'
+                    '  "complaint": true | false,\n'
+                    '  "priority": "high" | "medium" | "low",\n'
+                    '  "category": "general" | "technical" | "complaint" | "support" | "other",\n'
+                    '  "summary": "1-2 short sentences describing the message essence in Russian"\n'
+                    "The analysis must depend on the actual message content. "
+                    "Do NOT return default/hardcoded values. Return ONLY the JSON object."
                 ),
             },
             {"role": "user", "content": text},
@@ -59,7 +65,7 @@ def _openai_analyze(text: str) -> dict:
     )
 
     raw = response.choices[0].message.content.strip()
-    logger.debug("Ответ OpenAI (raw): %.200s", raw)
+    logger.info("Ответ OpenAI (raw): %s", raw)
 
     raw = re.sub(r"(?is)^.*?```(?:json)?\s*", "", raw)
     raw = re.sub(r"(?is)\s*```.*$", "", raw)
@@ -69,6 +75,10 @@ def _openai_analyze(text: str) -> dict:
         raise ValueError("OpenAI вернул пустой ответ")
 
     result = json.loads(raw)
+
+    if "is_complaint" in result and "complaint" not in result:
+        result["complaint"] = result.pop("is_complaint")
+
     logger.info("Анализ завершён: sentiment=%s, emotion=%s, complaint=%s",
                 result.get("sentiment"), result.get("emotion"), result.get("complaint"))
     return result
