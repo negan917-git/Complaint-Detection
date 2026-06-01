@@ -18,11 +18,16 @@ function getAuthHeaders() {
 }
 
 async function apiPostAuth(path, body) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('Не удалось подключиться к серверу. Проверьте, запущен ли backend.');
+  }
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.detail || 'Ошибка запроса');

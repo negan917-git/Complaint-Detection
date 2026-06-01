@@ -1,12 +1,12 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, cast, Date
-from .models import Bot, Message
-from .schemas import BotCreate, MessageCreate
+from backend.models import Bot, Message
+from backend.schemas import BotCreate, MessageCreate
 from datetime import datetime, timedelta
 import random
-from .services.telegram_service import validate_bot_token, get_bot_updates
-from .services.encryption import encrypt_token, decrypt_token
-from .services.openai_service import analyze_message
+from backend.services.telegram_service import validate_bot_token, get_bot_updates
+from backend.services.encryption import encrypt_token, decrypt_token
+from backend.services.openai_service import analyze_message
 
 
 def get_dashboard(db: Session):

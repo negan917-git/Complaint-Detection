@@ -1,22 +1,28 @@
+import os
+import sys
+if not __package__:
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    __package__ = "backend"
+
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from .database import engine, Base, get_db
-from .models import Bot, Message, User
-from .schemas import (
+from backend.database import engine, Base, get_db
+from backend.models import Bot, Message, User
+from backend.schemas import (
     MessageCreate, MessageOut, BotCreate, BotOut, BotConnectRequest,
     DashboardOut, AnalyzeRequest, AnalyzeResponse, AnalyticsOut,
     UserCreate, UserOut, LoginRequest, Token,
 )
-from .crud import (
+from backend.crud import (
     get_dashboard, get_messages, create_message,
     get_bots, create_bot, delete_bot, sync_bot_messages, get_analytics,
     connect_telegram_bot,
 )
-from .services.openai_service import analyze_message
-from .services.auth import (
+from backend.services.openai_service import analyze_message
+from backend.services.auth import (
     hash_password, verify_password, create_access_token, get_current_user,
 )
 import os
