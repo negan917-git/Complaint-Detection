@@ -1,4 +1,4 @@
-const API_BASE = window.location.origin;
+const API_BASE = 'https://complaint-detection.onrender.com';
 
 function getToken() {
   return localStorage.getItem('token');
@@ -28,9 +28,15 @@ async function apiPostAuth(path, body) {
   } catch {
     throw new Error('Не удалось подключиться к серверу. Проверьте, запущен ли backend.');
   }
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    const text = await res.text();
+    throw new Error(`Сервер вернул ошибку ${res.status}: ${text.slice(0, 100)}`);
+  }
   if (!res.ok) {
-    throw new Error(data.detail || 'Ошибка запроса');
+    throw new Error(data.detail || `Ошибка ${res.status}`);
   }
   return data;
 }

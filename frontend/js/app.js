@@ -1,4 +1,4 @@
-const API_BASE = window.location.origin;
+const API_BASE = 'https://complaint-detection.onrender.com';
 
 function getToken() {
   return localStorage.getItem('token');
@@ -14,8 +14,10 @@ function getAuthHeaders() {
 async function apiGet(path) {
   const res = await fetch(`${API_BASE}${path}`, { headers: getAuthHeaders() });
   if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
-  return res.json();
+  let data;
+  try { data = await res.json(); } catch { throw new Error(`Ошибка ответа от ${path}`); }
+  if (!res.ok) throw new Error(data.detail || `GET ${path} failed: ${res.status}`);
+  return data;
 }
 
 async function apiPost(path, body) {
@@ -25,14 +27,15 @@ async function apiPost(path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+  let data;
+  try { data = await res.json(); } catch { throw new Error(`Ошибка ответа от ${path}`); }
   if (!res.ok) {
-    const errBody = await res.json().catch(() => ({}));
-    const err = new Error(errBody.detail || `POST ${path} failed: ${res.status}`);
+    const err = new Error(data.detail || `POST ${path} failed: ${res.status}`);
     err.status = res.status;
-    err.detail = errBody.detail;
+    err.detail = data.detail;
     throw err;
   }
-  return res.json();
+  return data;
 }
 
 async function apiDelete(path) {
@@ -41,8 +44,10 @@ async function apiDelete(path) {
     headers: getAuthHeaders(),
   });
   if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
-  if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
-  return res.json();
+  let data;
+  try { data = await res.json(); } catch { throw new Error(`Ошибка ответа от ${path}`); }
+  if (!res.ok) throw new Error(data.detail || `DELETE ${path} failed: ${res.status}`);
+  return data;
 }
 
 function showNotification(message, type = 'info') {
