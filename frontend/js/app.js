@@ -1,7 +1,19 @@
 const API_BASE = 'https://complaint-detection.onrender.com';
 
+function getToken() {
+  return localStorage.getItem('token');
+}
+
+function getAuthHeaders() {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
 async function apiGet(path) {
-  const res = await fetch(`${API_BASE}${path}`);
+  const res = await fetch(`${API_BASE}${path}`, { headers: getAuthHeaders() });
+  if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
   if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
   return res.json();
 }
@@ -9,9 +21,10 @@ async function apiGet(path) {
 async function apiPost(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
     const err = new Error(errBody.detail || `POST ${path} failed: ${res.status}`);
@@ -23,7 +36,11 @@ async function apiPost(path, body) {
 }
 
 async function apiDelete(path) {
-  const res = await fetch(`${API_BASE}${path}`, { method: 'DELETE' });
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
   if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status}`);
   return res.json();
 }
@@ -49,4 +66,15 @@ function sentimentTag(s) {
 function priorityTag(p) {
   const map = { high: 'tag-high', medium: 'tag-medium', low: 'tag-low' };
   return `<span class="tag ${map[p] || 'tag-low'}">${p}</span>`;
+}
+
+function checkAuth() {
+  if (!getToken()) {
+    window.location.href = 'login.html';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('token');
+  window.location.href = 'login.html';
 }

@@ -4,10 +4,11 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from .database import engine, Base, get_db
-from .models import Bot, Message
+from .models import Bot, Message, User
 from .schemas import (
     MessageCreate, MessageOut, BotCreate, BotOut, BotConnectRequest,
     DashboardOut, AnalyzeRequest, AnalyzeResponse, AnalyticsOut,
+    UserCreate, UserOut, LoginRequest, Token,
 )
 from .crud import (
     get_dashboard, get_messages, create_message,
@@ -15,8 +16,12 @@ from .crud import (
     connect_telegram_bot,
 )
 from .services.openai_service import analyze_message
+from .services.auth import (
+    hash_password, verify_password, create_access_token, get_current_user,
+)
 import os
 import random
+import re
 
 Base.metadata.create_all(bind=engine)
 
@@ -31,8 +36,50 @@ app.add_middleware(
 )
 
 
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+
+@app.post("/api/auth/register", response_model=UserOut)
+def register(data: UserCreate, db: Session = Depends(get_db)):
+    if not data.email or not EMAIL_RE.match(data.email):
+        raise HTTPException(status_code=400, detail="Некорректный формат email")
+    if not data.password or len(data.password) < 6:
+        raise HTTPException(status_code=400, detail="Пароль должен быть минимум 6 символов")
+    if not data.username or len(data.username.strip()) == 0:
+        raise HTTPException(status_code=400, detail="Имя пользователя обязательно")
+    if db.query(User).filter(User.email == data.email).first():
+        raise HTTPException(status_code=400, detail="Email уже зарегистрирован")
+    if db.query(User).filter(User.username == data.username).first():
+        raise HTTPException(status_code=400, detail="Имя пользователя уже занято")
+    user = User(
+        username=data.username.strip(),
+        email=data.email.strip().lower(),
+        hashed_password=hash_password(data.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.post("/api/auth/login", response_model=Token)
+def login(data: LoginRequest, db: Session = Depends(get_db)):
+    if not data.email or not data.password:
+        raise HTTPException(status_code=400, detail="Email и пароль обязательны")
+    user = db.query(User).filter(User.email == data.email.strip().lower()).first()
+    if not user or not verify_password(data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Неверный email или пароль")
+    token = create_access_token({"sub": user.id})
+    return Token(access_token=token)
+
+
+@app.get("/api/auth/me", response_model=UserOut)
+def me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
 @app.get("/api/dashboard", response_model=DashboardOut)
-def api_dashboard(db: Session = Depends(get_db)):
+def api_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return get_dashboard(db)
 
 
@@ -42,22 +89,23 @@ def api_messages(
     sentiment: str = Query(None),
     priority: str = Query(None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     return get_messages(db, q=q, sentiment=sentiment, priority=priority)
 
 
 @app.post("/api/messages", response_model=MessageOut)
-def api_create_message(data: MessageCreate, db: Session = Depends(get_db)):
+def api_create_message(data: MessageCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return create_message(db, data)
 
 
 @app.get("/api/bots", response_model=list[BotOut])
-def api_bots(db: Session = Depends(get_db)):
+def api_bots(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return get_bots(db)
 
 
 @app.post("/api/bots", response_model=BotOut)
-def api_create_bot(data: BotCreate, db: Session = Depends(get_db)):
+def api_create_bot(data: BotCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     existing = db.query(Bot).filter(Bot.username == data.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Bot with this username already exists")
@@ -65,7 +113,7 @@ def api_create_bot(data: BotCreate, db: Session = Depends(get_db)):
 
 
 @app.post("/api/bots/connect", response_model=BotOut)
-def api_connect_bot(data: BotConnectRequest, db: Session = Depends(get_db)):
+def api_connect_bot(data: BotConnectRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         return connect_telegram_bot(db, data.token)
     except ValueError as e:
@@ -73,31 +121,31 @@ def api_connect_bot(data: BotConnectRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/api/bots/{bot_id}/sync")
-def api_sync_bot(bot_id: int, db: Session = Depends(get_db)):
+def api_sync_bot(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     messages = sync_bot_messages(db, bot_id)
     return {"messages_synced": len(messages), "messages": [MessageOut.model_validate(m).model_dump() for m in messages]}
 
 
 @app.delete("/api/bots/{bot_id}")
-def api_delete_bot(bot_id: int, db: Session = Depends(get_db)):
+def api_delete_bot(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not delete_bot(db, bot_id):
         raise HTTPException(status_code=404, detail="Bot not found")
     return {"ok": True}
 
 
 @app.get("/api/analytics")
-def api_analytics(db: Session = Depends(get_db)):
+def api_analytics(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return get_analytics(db)
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
-def api_analyze(data: AnalyzeRequest):
+def api_analyze(data: AnalyzeRequest, current_user: User = Depends(get_current_user)):
     result = analyze_message(data.text)
     return result
 
 
 @app.post("/api/seed")
-def api_seed(db: Session = Depends(get_db)):
+def api_seed(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     existing_bot = db.query(Bot).first()
     if not existing_bot:
         bot = Bot(name="Complaint Detection", username="complaint_detection_bot", status="connected")
@@ -173,7 +221,7 @@ def api_seed(db: Session = Depends(get_db)):
 
 
 @app.get("/api/generate-demo")
-def api_generate_demo(db: Session = Depends(get_db)):
+def api_generate_demo(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     texts = [
         "Ваш сервис работает ужасно, ничего не грузится!",
         "Спасибо за помощь, вы лучшие!",
