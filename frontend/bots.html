@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Боты — Complaint Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="logo-icon">⚡</span>
+      Complaint Detection
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><i class="fas fa-th-large"></i> Дашборд</a>
+      <a href="bots.html" class="nav-item active"><i class="fas fa-robot"></i> Боты</a>
+      <a href="messages.html" class="nav-item"><i class="fas fa-envelope"></i> Сообщения</a>
+      <a href="analytics.html" class="nav-item"><i class="fas fa-chart-line"></i> Аналитика</a>
+      <a href="simulation.html" class="nav-item"><i class="fas fa-flask"></i> Симуляция</a>
+      <a href="settings.html" class="nav-item"><i class="fas fa-cog"></i> Настройки</a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="#" class="nav-item"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="header">
+      <div class="header-left">
+        <button class="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h1>Боты</h1>
+      </div>
+      <div class="header-right">
+        <button class="btn btn-primary" onclick="showConnectBotModal()"><i class="fas fa-plus"></i> Подключить бота</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="info-block">
+        <i class="fas fa-info-circle"></i>
+        <p>После подключения бота нажмите <strong>Sync Messages</strong> чтобы получить и проанализировать все сообщения.</p>
+      </div>
+
+      <div class="bot-grid" id="botGrid">
+        <div class="empty-state"><i class="fas fa-robot"></i><p>Загрузка ботов...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="connectBotModal" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Подключить Telegram-бота</h2>
+        <button class="modal-close" onclick="hideConnectBotModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-secondary);font-size:14px;margin-bottom:20px;">
+          Введите токен бота, полученный через <strong>@BotFather</strong>.
+        </p>
+        <div class="form-group">
+          <label>Bot Token *</label>
+          <input type="text" id="botToken" placeholder="123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="hideConnectBotModal()">Отмена</button>
+        <button class="btn btn-primary" onclick="connectBot()"><i class="fas fa-plus"></i> Подключить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="deleteBotModal" style="display:none;">
+    <div class="modal" style="max-width:400px;">
+      <div class="modal-header">
+        <h2>Удалить бота</h2>
+        <button class="modal-close" onclick="hideDeleteBotModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-secondary);font-size:14px;">
+          Вы уверены? Бот и все связанные с ним сообщения будут удалены.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="hideDeleteBotModal()">Отмена</button>
+        <button class="btn btn-danger" onclick="confirmDeleteBot()"><i class="fas fa-trash"></i> Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/bots.js"></script>
+</body>
+</html>

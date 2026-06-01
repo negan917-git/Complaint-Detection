@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Сообщения — Complaint Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="logo-icon">⚡</span>
+      Complaint Detection
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><i class="fas fa-th-large"></i> Дашборд</a>
+      <a href="bots.html" class="nav-item"><i class="fas fa-robot"></i> Боты</a>
+      <a href="messages.html" class="nav-item active"><i class="fas fa-envelope"></i> Сообщения</a>
+      <a href="analytics.html" class="nav-item"><i class="fas fa-chart-line"></i> Аналитика</a>
+      <a href="simulation.html" class="nav-item"><i class="fas fa-flask"></i> Симуляция</a>
+      <a href="settings.html" class="nav-item"><i class="fas fa-cog"></i> Настройки</a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="#" class="nav-item"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="header">
+      <div class="header-left">
+        <button class="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h1>Сообщения</h1>
+      </div>
+      <div class="header-right">
+        <button class="btn btn-primary" onclick="location.reload()"><i class="fas fa-sync"></i> Обновить</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="table-container">
+        <div class="table-header">
+          <h3>Все сообщения</h3>
+          <div class="table-filters">
+            <input type="text" id="searchInput" placeholder="Поиск..." oninput="loadMessages()">
+            <select id="sentimentFilter" onchange="loadMessages()">
+              <option value="all">Тональность: Все</option>
+              <option value="positive">Positive</option>
+              <option value="negative">Negative</option>
+              <option value="neutral">Neutral</option>
+            </select>
+            <select id="priorityFilter" onchange="loadMessages()">
+              <option value="all">Приоритет: Все</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Имя</th>
+              <th>Сообщение</th>
+              <th>Тональность</th>
+              <th>Эмоция</th>
+              <th>Приоритет</th>
+              <th>Категория</th>
+              <th>Жалоба</th>
+              <th>Дата</th>
+            </tr>
+          </thead>
+          <tbody id="messagesBody">
+            <tr><td colspan="8" class="empty-state">Загрузка...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/messages.js"></script>
+</body>
+</html>

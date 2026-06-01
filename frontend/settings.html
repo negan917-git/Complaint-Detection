@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Настройки — Complaint Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="logo-icon">⚡</span>
+      Complaint Detection
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><i class="fas fa-th-large"></i> Дашборд</a>
+      <a href="bots.html" class="nav-item"><i class="fas fa-robot"></i> Боты</a>
+      <a href="messages.html" class="nav-item"><i class="fas fa-envelope"></i> Сообщения</a>
+      <a href="analytics.html" class="nav-item"><i class="fas fa-chart-line"></i> Аналитика</a>
+      <a href="simulation.html" class="nav-item"><i class="fas fa-flask"></i> Симуляция</a>
+      <a href="settings.html" class="nav-item active"><i class="fas fa-cog"></i> Настройки</a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="#" class="nav-item"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="header">
+      <div class="header-left">
+        <button class="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h1>Настройки</h1>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="card" style="max-width:600px;">
+        <div class="card-header">
+          <h3><i class="fas fa-database" style="margin-right:8px;color:var(--primary);"></i> Управление данными</h3>
+        </div>
+        <div class="card-body">
+          <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">
+            Заполните базу данных демонстрационными данными для тестирования.
+          </p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="seedData()"><i class="fas fa-seedling"></i> Заполнить демо-данными</button>
+            <button class="btn btn-danger" onclick="clearData()"><i class="fas fa-trash"></i> Очистить всё</button>
+          </div>
+          <div id="seedResult" style="margin-top:16px;"></div>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:600px;margin-top:20px;">
+        <div class="card-header">
+          <h3><i class="fab fa-telegram" style="margin-right:8px;color:var(--primary);"></i> Инструкция: получение токена Telegram-бота</h3>
+        </div>
+        <div class="card-body">
+          <ol style="color:var(--text-secondary);font-size:14px;line-height:2;">
+            <li>Откройте <strong>@BotFather</strong> в Telegram</li>
+            <li>Выполните команду <code>/newbot</code></li>
+            <li>Создайте бота (укажите имя и username)</li>
+            <li>Скопируйте полученный <strong>Token</strong></li>
+            <li>Вставьте токен в поле на странице <strong>Боты</strong></li>
+            <li>Нажмите <strong>«Подключить»</strong></li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:600px;margin-top:20px;">
+        <div class="card-header">
+          <h3><i class="fas fa-key" style="margin-right:8px;color:var(--warning);"></i> OpenAI API</h3>
+        </div>
+        <div class="card-body">
+          <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">
+            Для использования AI-анализа сообщений укажите <code>OPENAI_API_KEY</code> в файле <code>.env</code>. 
+            Ключ не передаётся через интерфейс — он считывается сервером из переменной окружения.
+          </p>
+          <div class="form-group">
+            <label>Статус подключения</label>
+            <span id="apiStatus" class="tag tag-neutral">Проверка...</span>
+          </div>
+          <button class="btn btn-outline" onclick="checkApiStatus()"><i class="fas fa-sync"></i> Проверить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    async function seedData() {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Заполнение...';
+      try {
+        const res = await apiPost('/api/seed');
+        showNotification(`Данные добавлены: ${res.seeded} сообщений`, 'success');
+      } catch (e) {
+        showNotification('Ошибка заполнения данных', 'error');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-seedling"></i> Заполнить демо-данными';
+    }
+
+    async function clearData() {
+      if (!confirm('Вы уверены? Все данные будут удалены.')) return;
+      try {
+        await apiPost('/api/seed');
+        showNotification('Все данные удалены', 'info');
+        location.reload();
+      } catch (e) {
+        showNotification('Ошибка', 'error');
+      }
+    }
+
+    async function checkApiStatus() {
+      const el = document.getElementById('apiStatus');
+      try {
+        const res = await apiPost('/api/analyze', { text: 'test' });
+        if (res && res.sentiment) {
+          el.className = 'tag tag-positive';
+          el.textContent = 'Подключено';
+        }
+      } catch {
+        el.className = 'tag tag-negative';
+        el.textContent = 'Недоступно';
+      }
+    }
+    checkApiStatus();
+  </script>
+</body>
+</html>
