@@ -26,11 +26,11 @@ async function apiPostAuth(path, body) {
   } catch {
     throw new Error('Не удалось подключиться к серверу. Проверьте, запущен ли backend.');
   }
+  const text = await res.text();
   let data;
   try {
-    data = await res.json();
+    data = JSON.parse(text);
   } catch {
-    const text = await res.text();
     throw new Error(`Сервер вернул ошибку ${res.status}: ${text.slice(0, 100)}`);
   }
   if (!res.ok) {
@@ -72,6 +72,7 @@ async function handleLogin(e) {
     const verifyRes = await fetch(`${API_BASE}/api/auth/me`, {
       headers: { 'Authorization': `Bearer ${data.access_token}` },
     });
+    await verifyRes.text();
     if (!verifyRes.ok) throw new Error('Ошибка верификации токена');
     window.location.href = 'index.html';
   } catch (err) {
@@ -101,6 +102,7 @@ async function handleRegister(e) {
     const verifyRes = await fetch(`${API_BASE}/api/auth/me`, {
       headers: { 'Authorization': `Bearer ${loginData.access_token}` },
     });
+    await verifyRes.text();
     if (!verifyRes.ok) throw new Error('Ошибка верификации токена');
     window.location.href = 'index.html';
   } catch (err) {
