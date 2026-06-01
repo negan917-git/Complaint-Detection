@@ -3,18 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from database import engine, Base, get_db
-from models import Bot, Message
-from schemas import (
+from .database import engine, Base, get_db
+from .models import Bot, Message
+from .schemas import (
     MessageCreate, MessageOut, BotCreate, BotOut, BotConnectRequest,
     DashboardOut, AnalyzeRequest, AnalyzeResponse, AnalyticsOut,
 )
-from crud import (
+from .crud import (
     get_dashboard, get_messages, create_message,
     get_bots, create_bot, delete_bot, sync_bot_messages, get_analytics,
     connect_telegram_bot,
 )
-from services.openai_service import analyze_message
+from .services.openai_service import analyze_message
 import os
 import random
 
@@ -221,4 +221,4 @@ if os.path.isdir(api_dir):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
