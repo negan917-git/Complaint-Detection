@@ -28,7 +28,7 @@ function MessageCard(m) {
           ${m.name || 'Аноним'}
           ${usernameHtml}
         </span>
-        <span class="date" title="${new Date(m.created_at).toLocaleString('ru-RU')}">${formatDate(m.created_at)}</span>
+        <span class="date" title="${m.created_at ? new Date(m.created_at).toLocaleString('ru-RU') : ''}">${m.created_at ? formatDate(m.created_at) : '—'}</span>
         <div class="badges">
           ${priorityBadge}
           ${sentimentBadge}
@@ -67,7 +67,8 @@ async function loadMessages() {
     }
     container.innerHTML = messages.map(m => MessageCard(m)).join('');
   } catch (e) {
-    container.innerHTML = '<div class="messages-empty"><i class="fas fa-exclamation-triangle"></i><p>Ошибка загрузки</p></div>';
+    const msg = e.detail || e.message || 'Ошибка загрузки';
+    container.innerHTML = `<div class="messages-empty"><i class="fas fa-exclamation-triangle"></i><p>${msg}</p></div>`;
   }
 }
 

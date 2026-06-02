@@ -74,7 +74,7 @@ async function generateDemo() {
     const res = await apiGet('/api/generate-demo');
     showNotification(`Сгенерировано ${res.generated} сообщений`, 'success');
   } catch (e) {
-    showNotification('Ошибка генерации', 'error');
+    showNotification(e.detail || e.message || 'Ошибка генерации', 'error');
   }
 
   btn.disabled = false;

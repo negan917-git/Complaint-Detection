@@ -99,9 +99,13 @@ def sync_bot_messages(db: Session, bot_id: int, user_id: int):
         return []
     if bot.token:
         raw_token = decrypt_token(bot.token)
+        if not raw_token:
+            logger.error("Не удалось расшифровать токен бота %d", bot.id)
+            return []
         try:
             updates = get_bot_updates(raw_token)
-        except Exception:
+        except Exception as e:
+            logger.error("Ошибка получения обновлений для бота %d: %s", bot.id, e)
             updates = []
         new_messages = []
         for update in updates:

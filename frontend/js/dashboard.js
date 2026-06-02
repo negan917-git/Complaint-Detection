@@ -67,7 +67,8 @@ async function loadDashboard() {
       }
     });
   } catch (e) {
-    console.error('Dashboard error:', e);
+    const msg = e.detail || e.message || 'Ошибка загрузки данных для графиков';
+    document.getElementById('sentimentChart')?.insertAdjacentHTML?.('afterend', `<p style="color:var(--danger);padding:24px;text-align:center;">${msg}</p>`);
   }
 }
 

@@ -5,9 +5,10 @@ if not __package__:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
     __package__ = "backend"
 
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.database import engine, Base, get_db
@@ -37,6 +38,23 @@ logging.basicConfig(
 )
 
 app = FastAPI(title="Complaint Detection")
+
+log = logging.getLogger("opencode.api")
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
+    log.error("Unhandled exception: %s | %s", exc, type(exc).__name__, exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Внутренняя ошибка сервера: {type(exc).__name__}"},
+    )
+
 
 app.add_middleware(
     CORSMiddleware,

@@ -78,7 +78,7 @@ def _openai_analyze(text: str) -> dict:
         raise ValueError("Текст сообщения пустой")
 
     from openai import OpenAI
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=20, max_retries=0)
 
     logger.info("Отправка запроса в OpenAI (gpt-4o-mini), длина текста: %d символов", len(text))
 
@@ -107,7 +107,7 @@ def _openai_analyze(text: str) -> dict:
     )
 
     raw = response.choices[0].message.content.strip()
-    logger.info("Ответ OpenAI (raw): %s", raw)
+    logger.info("Ответ OpenAI (raw): %s", raw[:200])
 
     raw = re.sub(r"(?is)^.*?```(?:json)?\s*", "", raw)
     raw = re.sub(r"(?is)\s*```.*$", "", raw)
@@ -121,28 +121,38 @@ def _openai_analyze(text: str) -> dict:
     if "is_complaint" in result and "complaint" not in result:
         result["complaint"] = result.pop("is_complaint")
 
-    result = {
-        "sentiment": result.get("sentiment", "neutral"),
-        "emotion": result.get("emotion", "neutral"),
-        "complaint": result.get("complaint", False),
-        "priority": result.get("priority", "medium"),
-        "category": result.get("category", "general"),
-        "summary": result.get("summary", ""),
-    }
+    sentiment = result.get("sentiment", "neutral")
+    emotion = result.get("emotion", "neutral")
+    complaint = result.get("complaint", False)
+    priority = result.get("priority", "medium")
+    category = result.get("category", "general")
+    summary = result.get("summary", "")
 
     emotion_map = {
         "joy": "happy", "anger": "angry", "sadness": "frustrated",
         "fear": "confused", "surprise": "confused",
     }
-    result["emotion"] = emotion_map.get(result.get("emotion", ""), result.get("emotion", "neutral"))
-    result["sentiment"] = result.get("sentiment", "neutral") if result.get("sentiment") in ("positive", "negative", "neutral") else "neutral"
-    result["category"] = result.get("category", "general") if result.get("category") in ("general", "technical", "billing", "product", "account", "service", "support") else "general"
-    result["priority"] = result.get("priority", "medium") if result.get("priority") in ("high", "medium", "low") else "medium"
+    emotion = emotion_map.get(emotion, emotion)
 
-    result["analyzer"] = "openai"
+    if sentiment not in ("positive", "negative", "neutral"):
+        sentiment = "neutral"
+    if category not in ("general", "technical", "billing", "product", "account", "service", "support"):
+        category = "general"
+    if priority not in ("high", "medium", "low"):
+        priority = "medium"
+
+    result = {
+        "sentiment": sentiment,
+        "emotion": emotion,
+        "complaint": complaint,
+        "priority": priority,
+        "category": category,
+        "summary": summary,
+        "analyzer": "openai",
+    }
 
     logger.info("Анализ завершён: sentiment=%s, emotion=%s, complaint=%s, analyzer=%s",
-                result.get("sentiment"), result.get("emotion"), result.get("complaint"), result["analyzer"])
+                sentiment, emotion, complaint, "openai")
     return result
 
 

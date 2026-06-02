@@ -90,7 +90,9 @@ async function loadAnalytics() {
       `).join('');
     }
   } catch (e) {
-    console.error('Analytics error:', e);
+    const msg = e.detail || e.message || 'Ошибка загрузки аналитики';
+    const el = document.getElementById('analyticsStats');
+    if (el) el.innerHTML = `<div class="stat-card" style="grid-column:1/-1;"><p style="color:var(--danger);padding:24px;text-align:center;">${msg}</p></div>`;
   }
 }
 

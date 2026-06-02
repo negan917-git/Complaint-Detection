@@ -101,7 +101,7 @@
         const res = await apiPost('/api/seed');
         showNotification(`Данные добавлены: ${res.seeded} сообщений`, 'success');
       } catch (e) {
-        showNotification('Ошибка заполнения данных', 'error');
+        showNotification(e.detail || e.message || 'Ошибка заполнения данных', 'error');
       }
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-seedling"></i> Заполнить демо-данными'; }
     }
@@ -114,7 +114,7 @@
         showNotification('Все данные удалены', 'info');
         location.reload();
       } catch (e) {
-        showNotification('Ошибка', 'error');
+        showNotification(e.detail || e.message || 'Ошибка очистки данных', 'error');
       }
     }
 
