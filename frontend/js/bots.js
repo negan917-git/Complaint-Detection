@@ -40,7 +40,7 @@ async function loadBots() {
       </div>
     `).join('');
   } catch (e) {
-    grid.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Ошибка загрузки ботов</p></div>';
+    grid.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>${e.detail || e.message || 'Ошибка загрузки ботов'}</p></div>`;
   }
 }
 
@@ -53,7 +53,7 @@ async function syncBot(id, event) {
     showNotification(`Синхронизировано ${res.messages_synced} сообщений`, 'success');
     loadBots();
   } catch (e) {
-    showNotification('Ошибка синхронизации', 'error');
+    showNotification(e.detail || e.message || 'Ошибка синхронизации', 'error');
     if (targetBtn) targetBtn.innerHTML = originalHtml;
   }
 }
@@ -76,7 +76,7 @@ async function confirmDeleteBot() {
     hideDeleteBotModal();
     loadBots();
   } catch (e) {
-    showNotification('Ошибка удаления', 'error');
+    showNotification(e.detail || e.message || 'Ошибка удаления', 'error');
   }
 }
 
@@ -104,7 +104,7 @@ async function connectBot() {
     hideConnectBotModal();
     loadBots();
   } catch (e) {
-    showNotification(e.detail || 'Неверный токен Telegram-бота', 'error');
+    showNotification(e.detail || e.message || 'Ошибка подключения бота', 'error');
   }
   btn.disabled = false;
   btn.innerHTML = '<i class="fas fa-plus"></i> Подключить';

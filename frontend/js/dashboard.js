@@ -14,21 +14,6 @@ async function loadDashboard() {
 
   try {
     const messages = await apiGet('/api/messages');
-    const recentBody = document.getElementById('recentMessagesBody');
-    if (messages.length === 0) {
-      recentBody.innerHTML = '<tr><td colspan="4" class="empty-state">Нет сообщений</td></tr>';
-    } else {
-      recentBody.innerHTML = messages.slice(0, 10).map(m => `
-        <tr>
-          <td><strong>${m.name || '—'}</strong></td>
-          <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${m.text}</td>
-          <td>${sentimentTag(m.sentiment)}</td>
-          <td>${priorityTag(m.priority)}</td>
-        </tr>
-      `).join('');
-    }
-
-    const total = messages.length;
     const pos = messages.filter(m => m.sentiment === 'positive').length;
     const neg = messages.filter(m => m.sentiment === 'negative').length;
     const neut = messages.filter(m => m.sentiment === 'neutral').length;
