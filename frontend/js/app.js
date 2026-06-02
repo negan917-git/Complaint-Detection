@@ -16,7 +16,12 @@ async function apiGet(path) {
   if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
   let data;
   try { data = await res.json(); } catch { throw new Error(`Ошибка ответа от ${path}`); }
-  if (!res.ok) throw new Error(data.detail || `GET ${path} failed: ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.detail || `GET ${path} failed: ${res.status}`);
+    err.status = res.status;
+    err.detail = data.detail;
+    throw err;
+  }
   return data;
 }
 
@@ -46,7 +51,12 @@ async function apiDelete(path) {
   if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
   let data;
   try { data = await res.json(); } catch { throw new Error(`Ошибка ответа от ${path}`); }
-  if (!res.ok) throw new Error(data.detail || `DELETE ${path} failed: ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.detail || `DELETE ${path} failed: ${res.status}`);
+    err.status = res.status;
+    err.detail = data.detail;
+    throw err;
+  }
   return data;
 }
 

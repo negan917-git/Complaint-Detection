@@ -7,7 +7,7 @@ logger = logging.getLogger("opencode.telegram")
 
 TELEGRAM_API = "https://api.telegram.org/bot"
 
-TOKEN_RE = re.compile(r"^\d+:[a-zA-Z0-9_-]+$")
+TOKEN_RE = re.compile(r"^\d+:\S+$")
 
 
 def validate_bot_token(token: str) -> dict:
@@ -31,8 +31,6 @@ def validate_bot_token(token: str) -> dict:
     except RequestException as e:
         logger.error("Ошибка запроса к Telegram API: %s", e)
         raise ValueError(f"Ошибка при проверке токена: {e}")
-    except ValueError:
-        raise
     except Exception as e:
         logger.error("Неизвестная ошибка при проверке токена: %s", e)
         raise ValueError(f"Неизвестная ошибка при проверке токена: {e}")
