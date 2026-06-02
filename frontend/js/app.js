@@ -63,14 +63,36 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+const CATEGORY_LABELS = {
+  general: 'Общее',
+  technical: 'Техническое',
+  billing: 'Оплата',
+  product: 'Продукт',
+  account: 'Аккаунт',
+  service: 'Сервис',
+  support: 'Поддержка',
+};
+
+const EMOTION_LABELS = {
+  happy: 'Счастлив',
+  angry: 'Злой',
+  frustrated: 'Раздражён',
+  confused: 'Смущён',
+  neutral: 'Нейтрально',
+};
+
+function capitalize(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 function sentimentTag(s) {
   const map = { positive: 'tag-positive', negative: 'tag-negative', neutral: 'tag-neutral' };
-  return `<span class="tag ${map[s] || 'tag-neutral'}">${s}</span>`;
+  return `<span class="tag ${map[s] || 'tag-neutral'}">${capitalize(s)}</span>`;
 }
 
 function priorityTag(p) {
   const map = { high: 'tag-high', medium: 'tag-medium', low: 'tag-low' };
-  return `<span class="tag ${map[p] || 'tag-low'}">${p}</span>`;
+  return `<span class="tag ${map[p] || 'tag-low'}">${capitalize(p)}</span>`;
 }
 
 function checkAuth() {

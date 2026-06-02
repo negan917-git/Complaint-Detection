@@ -91,7 +91,7 @@ def me(current_user: User = Depends(get_current_user)):
 
 @app.get("/api/dashboard", response_model=DashboardOut)
 def api_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return get_dashboard(db)
+    return get_dashboard(db, user_id=current_user.id)
 
 
 @app.get("/api/messages", response_model=list[MessageOut])
@@ -102,51 +102,48 @@ def api_messages(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_messages(db, q=q, sentiment=sentiment, priority=priority)
+    return get_messages(db, user_id=current_user.id, q=q, sentiment=sentiment, priority=priority)
 
 
 @app.post("/api/messages", response_model=MessageOut)
 def api_create_message(data: MessageCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return create_message(db, data)
+    return create_message(db, data, user_id=current_user.id)
 
 
 @app.get("/api/bots", response_model=list[BotOut])
 def api_bots(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return get_bots(db)
+    return get_bots(db, user_id=current_user.id)
 
 
 @app.post("/api/bots", response_model=BotOut)
 def api_create_bot(data: BotCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    existing = db.query(Bot).filter(Bot.username == data.username).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Bot with this username already exists")
-    return create_bot(db, data)
+    return create_bot(db, data, user_id=current_user.id)
 
 
 @app.post("/api/bots/connect", response_model=BotOut)
 def api_connect_bot(data: BotConnectRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        return connect_telegram_bot(db, data.token)
+        return connect_telegram_bot(db, data.token, user_id=current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/api/bots/{bot_id}/sync")
 def api_sync_bot(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    messages = sync_bot_messages(db, bot_id)
+    messages = sync_bot_messages(db, bot_id, user_id=current_user.id)
     return {"messages_synced": len(messages), "messages": [MessageOut.model_validate(m).model_dump() for m in messages]}
 
 
 @app.delete("/api/bots/{bot_id}")
 def api_delete_bot(bot_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not delete_bot(db, bot_id):
+    if not delete_bot(db, bot_id, user_id=current_user.id):
         raise HTTPException(status_code=404, detail="Bot not found")
     return {"ok": True}
 
 
 @app.get("/api/analytics")
 def api_analytics(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return get_analytics(db)
+    return get_analytics(db, user_id=current_user.id)
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
@@ -171,25 +168,26 @@ def debug_openai():
 
 @app.delete("/api/messages/clear")
 def api_clear_messages(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    db.query(Message).delete()
-    db.query(Bot).update({"messages_count": 0})
+    db.query(Message).filter(Message.user_id == current_user.id).delete()
+    db.query(Bot).filter(Bot.user_id == current_user.id).update({"messages_count": 0})
     db.commit()
     return {"ok": True}
 
 
 @app.delete("/api/bots/clear")
 def api_clear_bots(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    db.query(Message).delete()
-    db.query(Bot).delete()
+    db.query(Message).filter(Message.user_id == current_user.id).delete()
+    db.query(Bot).filter(Bot.user_id == current_user.id).delete()
     db.commit()
     return {"ok": True}
 
 
 @app.post("/api/seed")
 def api_seed(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    existing_bot = db.query(Bot).first()
+    uid = current_user.id
+    existing_bot = db.query(Bot).filter(Bot.user_id == uid).first()
     if not existing_bot:
-        bot = Bot(name="Complaint Detection", username="complaint_detection_bot", status="connected")
+        bot = Bot(user_id=uid, name="Complaint Detection", username="complaint_detection_bot", status="connected")
         db.add(bot)
         db.commit()
         db.refresh(bot)
@@ -235,34 +233,36 @@ def api_seed(db: Session = Depends(get_db), current_user: User = Depends(get_cur
 
     count = 0
     for name, text, sentiment, emotion, complaint, priority, category in sample_messages:
-        existing = db.query(Message).filter(Message.text == text).first()
-        if not existing:
-            summary_map = {
-                "negative": "Пользователь жалуется на проблему.",
-                "positive": "Пользователь оставил положительный отзыв.",
-                "neutral": "Пользователь задает вопрос.",
-            }
-            msg = Message(
-                name=name,
-                username=bot.username,
-                text=text,
-                summary=summary_map.get(sentiment, ""),
-                sentiment=sentiment,
-                emotion=emotion,
-                complaint=complaint,
-                priority=priority,
-                category=category,
-            )
-            db.add(msg)
-            count += 1
+        summary_map = {
+            "negative": "Пользователь жалуется на проблему.",
+            "positive": "Пользователь оставил положительный отзыв.",
+            "neutral": "Пользователь задает вопрос.",
+        }
+        msg = Message(
+            user_id=uid,
+            name=name,
+            username=bot.username,
+            text=text,
+            summary=summary_map.get(sentiment, ""),
+            sentiment=sentiment,
+            emotion=emotion,
+            complaint=complaint,
+            priority=priority,
+            category=category,
+        )
+        db.add(msg)
+        count += 1
 
-    bot.messages_count = db.query(func.count(Message.id)).scalar()
+    bot.messages_count = (
+        db.query(func.count(Message.id)).filter(Message.user_id == uid, Message.username == bot.username).scalar()
+    )
     db.commit()
     return {"seeded": count, "total_messages": bot.messages_count}
 
 
 @app.get("/api/generate-demo")
 def api_generate_demo(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    uid = current_user.id
     texts = [
         "Ваш сервис работает ужасно, ничего не грузится!",
         "Спасибо за помощь, вы лучшие!",
@@ -276,9 +276,9 @@ def api_generate_demo(db: Session = Depends(get_db), current_user: User = Depend
         "Идеально, всё работает отлично!",
     ]
     names = ["Анна", "Иван", "Петр", "Мария", "Ольга"]
-    bot = db.query(Bot).first()
+    bot = db.query(Bot).filter(Bot.user_id == uid).first()
     if not bot:
-        bot = Bot(name="Complaint Detection", username="complaint_detection_bot", status="connected")
+        bot = Bot(user_id=uid, name="Complaint Detection", username="complaint_detection_bot", status="connected")
         db.add(bot)
         db.commit()
         db.refresh(bot)
@@ -286,6 +286,7 @@ def api_generate_demo(db: Session = Depends(get_db), current_user: User = Depend
     for text in texts:
         result = analyze_message(text)
         msg = Message(
+            user_id=uid,
             name=random.choice(names),
             username=bot.username,
             text=text,

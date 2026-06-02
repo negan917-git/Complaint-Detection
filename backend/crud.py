@@ -1,6 +1,6 @@
 import logging
 from sqlalchemy.orm import Session
-from sqlalchemy import func, extract, cast, Date
+from sqlalchemy import func
 from backend.models import Bot, Message
 from backend.schemas import BotCreate, MessageCreate
 from datetime import datetime, timedelta
@@ -12,11 +12,16 @@ from backend.services.openai_service import analyze_message
 logger = logging.getLogger("opencode.crud")
 
 
-def get_dashboard(db: Session):
-    total = db.query(func.count(Message.id)).scalar() or 0
-    negative = db.query(func.count(Message.id)).filter(Message.sentiment == "negative").scalar() or 0
-    complaints = db.query(func.count(Message.id)).filter(Message.complaint == True).scalar() or 0
-    active_bots = db.query(func.count(Bot.id)).filter(Bot.status == "connected").scalar() or 0
+def get_dashboard(db: Session, user_id: int):
+    base = db.query(Message).filter(Message.user_id == user_id)
+    total = base.with_entities(func.count(Message.id)).scalar() or 0
+    negative = base.filter(Message.sentiment == "negative").with_entities(func.count(Message.id)).scalar() or 0
+    complaints = base.filter(Message.complaint == True).with_entities(func.count(Message.id)).scalar() or 0
+    active_bots = (
+        db.query(func.count(Bot.id))
+        .filter(Bot.user_id == user_id, Bot.status == "connected")
+        .scalar() or 0
+    )
     negative_percent = round((negative / total * 100), 1) if total else 0
     return {
         "total_messages": total,
@@ -26,7 +31,7 @@ def get_dashboard(db: Session):
     }
 
 
-def connect_telegram_bot(db: Session, token: str):
+def connect_telegram_bot(db: Session, token: str, user_id: int):
     bot_data = validate_bot_token(token)
     telegram_id = bot_data["id"]
     existing = db.query(Bot).filter(Bot.telegram_bot_id == telegram_id).first()
@@ -34,6 +39,7 @@ def connect_telegram_bot(db: Session, token: str):
         raise ValueError("Этот бот уже добавлен")
     encrypted = encrypt_token(token)
     bot = Bot(
+        user_id=user_id,
         telegram_bot_id=telegram_id,
         name=bot_data["first_name"],
         username=bot_data["username"],
@@ -46,8 +52,8 @@ def connect_telegram_bot(db: Session, token: str):
     return bot
 
 
-def get_messages(db: Session, q: str = None, sentiment: str = None, priority: str = None):
-    query = db.query(Message)
+def get_messages(db: Session, user_id: int, q: str = None, sentiment: str = None, priority: str = None):
+    query = db.query(Message).filter(Message.user_id == user_id)
     if q:
         query = query.filter(Message.text.ilike(f"%{q}%"))
     if sentiment and sentiment != "all":
@@ -57,38 +63,38 @@ def get_messages(db: Session, q: str = None, sentiment: str = None, priority: st
     return query.order_by(Message.created_at.desc()).all()
 
 
-def create_message(db: Session, data: MessageCreate):
-    msg = Message(**data.model_dump())
+def create_message(db: Session, data: MessageCreate, user_id: int):
+    msg = Message(**data.model_dump(), user_id=user_id)
     db.add(msg)
     db.commit()
     db.refresh(msg)
     return msg
 
 
-def get_bots(db: Session):
-    return db.query(Bot).all()
+def get_bots(db: Session, user_id: int):
+    return db.query(Bot).filter(Bot.user_id == user_id).all()
 
 
-def create_bot(db: Session, data: BotCreate):
-    bot = Bot(name=data.name, username=data.username, status="connected")
+def create_bot(db: Session, data: BotCreate, user_id: int):
+    bot = Bot(name=data.name, username=data.username, status="connected", user_id=user_id)
     db.add(bot)
     db.commit()
     db.refresh(bot)
     return bot
 
 
-def delete_bot(db: Session, bot_id: int):
-    bot = db.query(Bot).filter(Bot.id == bot_id).first()
+def delete_bot(db: Session, bot_id: int, user_id: int):
+    bot = db.query(Bot).filter(Bot.id == bot_id, Bot.user_id == user_id).first()
     if bot:
-        db.query(Message).filter(Message.username == bot.username).delete()
+        db.query(Message).filter(Message.username == bot.username, Message.user_id == user_id).delete()
         db.delete(bot)
         db.commit()
         return True
     return False
 
 
-def sync_bot_messages(db: Session, bot_id: int):
-    bot = db.query(Bot).filter(Bot.id == bot_id).first()
+def sync_bot_messages(db: Session, bot_id: int, user_id: int):
+    bot = db.query(Bot).filter(Bot.id == bot_id, Bot.user_id == user_id).first()
     if not bot:
         return []
     if bot.token:
@@ -103,9 +109,6 @@ def sync_bot_messages(db: Session, bot_id: int):
             text = msg_data.get("text", "")
             if not text:
                 continue
-            existing = db.query(Message).filter(Message.text == text).first()
-            if existing:
-                continue
             from_user = msg_data.get("from", {})
             name = from_user.get("first_name", "User") or "User"
             username = from_user.get("username", "")
@@ -113,6 +116,7 @@ def sync_bot_messages(db: Session, bot_id: int):
             result = analyze_message(text)
             logger.debug("Результат анализа: %s", result)
             msg = Message(
+                user_id=user_id,
                 name=name,
                 username=username,
                 text=text,
@@ -152,6 +156,7 @@ def sync_bot_messages(db: Session, bot_id: int):
         complaint = sentiment == "negative" and random.random() > 0.3
         summary = f"AI summary: {text[:50]}..."
         msg = Message(
+            user_id=user_id,
             name=bot.name,
             username=bot.username,
             text=text,
@@ -171,12 +176,13 @@ def sync_bot_messages(db: Session, bot_id: int):
     return new_messages
 
 
-def get_analytics(db: Session):
-    total = db.query(func.count(Message.id)).scalar() or 0
-    negative = db.query(func.count(Message.id)).filter(Message.sentiment == "negative").scalar() or 0
-    complaints = db.query(func.count(Message.id)).filter(Message.complaint == True).scalar() or 0
+def get_analytics(db: Session, user_id: int):
+    base = db.query(Message).filter(Message.user_id == user_id)
+    total = base.with_entities(func.count(Message.id)).scalar() or 0
+    negative = base.filter(Message.sentiment == "negative").with_entities(func.count(Message.id)).scalar() or 0
+    complaints = base.filter(Message.complaint == True).with_entities(func.count(Message.id)).scalar() or 0
     top_emotion_row = (
-        db.query(Message.emotion, func.count(Message.id).label("cnt"))
+        base.with_entities(Message.emotion, func.count(Message.id).label("cnt"))
         .group_by(Message.emotion)
         .order_by(func.count(Message.id).desc())
         .first()
@@ -192,12 +198,12 @@ def get_analytics(db: Session):
         day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
         total_day = (
-            db.query(func.count(Message.id))
+            base.with_entities(func.count(Message.id))
             .filter(Message.created_at >= day_start, Message.created_at < day_end)
             .scalar() or 0
         )
         neg_day = (
-            db.query(func.count(Message.id))
+            base.with_entities(func.count(Message.id))
             .filter(
                 Message.sentiment == "negative",
                 Message.created_at >= day_start,
@@ -212,7 +218,7 @@ def get_analytics(db: Session):
         })
 
     top_complaints_rows = (
-        db.query(Message.text, func.count(Message.id).label("cnt"))
+        base.with_entities(Message.text, func.count(Message.id).label("cnt"))
         .filter(Message.complaint == True)
         .group_by(Message.text)
         .order_by(func.count(Message.id).desc())
@@ -222,7 +228,7 @@ def get_analytics(db: Session):
     top_complaints = [{"text": r[0][:60], "count": r[1]} for r in top_complaints_rows]
 
     categories_rows = (
-        db.query(Message.category, func.count(Message.id).label("cnt"))
+        base.with_entities(Message.category, func.count(Message.id).label("cnt"))
         .group_by(Message.category)
         .order_by(func.count(Message.id).desc())
         .all()

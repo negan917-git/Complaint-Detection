@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, BigInteger
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Float, BigInteger, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from backend.database import Base
 
 
@@ -12,24 +13,31 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
+    bots = relationship("Bot", back_populates="owner", cascade="all, delete-orphan")
+    messages = relationship("Message", back_populates="owner", cascade="all, delete-orphan")
+
 
 class Bot(Base):
     __tablename__ = "bots"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     telegram_bot_id = Column(BigInteger, unique=True, nullable=True)
     name = Column(String, nullable=False)
-    username = Column(String, unique=True, nullable=False)
+    username = Column(String, nullable=False)
     token = Column(String, nullable=True)
     status = Column(String, default="connected")
     messages_count = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
+
+    owner = relationship("User", back_populates="bots")
 
 
 class Message(Base):
     __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String)
     username = Column(String)
     text = Column(Text, nullable=False)
@@ -40,3 +48,5 @@ class Message(Base):
     category = Column(String, default="general")
     complaint = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
+
+    owner = relationship("User", back_populates="messages")

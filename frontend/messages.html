@@ -37,6 +37,7 @@
         <h1>Сообщения</h1>
       </div>
       <div class="header-right">
+        <button class="theme-toggle" onclick="toggleTheme()" title="Сменить тему"><i class="fas fa-moon"></i></button>
         <button class="btn btn-primary" onclick="location.reload()"><i class="fas fa-sync"></i> Обновить</button>
       </div>
     </header>
@@ -61,23 +62,9 @@
             </select>
           </div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Имя</th>
-              <th>Сообщение</th>
-              <th>Тональность</th>
-              <th>Эмоция</th>
-              <th>Приоритет</th>
-              <th>Категория</th>
-              <th>Жалоба</th>
-              <th>Дата</th>
-            </tr>
-          </thead>
-          <tbody id="messagesBody">
-            <tr><td colspan="8" class="empty-state">Загрузка...</td></tr>
-          </tbody>
-        </table>
+        <div id="messagesContainer" class="messages-grid">
+          <div class="messages-empty">Загрузка...</div>
+        </div>
       </div>
     </div>
   </div>
